@@ -8,9 +8,9 @@ function onFormSubmit(e) {
   var rechargeAddr = parseRechargeAddress(lastResponse[2]);
   
   //copy template file, name after invoice #
-  var driveFile = DriveApp.getFileById('1k9qX80hxzHyIiVXlhNN_TPjk63-FDXNcJOm3sqpHVJk').makeCopy(lastResponse[4],
+  var driveFile = DriveApp.getFileById('17HrtgOxjCFSEDdxNxBYX819ygKuZOq7VTkg_839S-Zk').makeCopy(lastResponse[4],
                                                                                                DriveApp.getFolderById(
-                                                                                                 '14ILHNZSeirkUtg2ljcNCKyoePOjrJ2TR'));
+                                                                                                 '1EM0UJWFgmGxswT5hj4PX9RFedFr6BB_I'));
   var body = DocumentApp.openByUrl(driveFile.getUrl()).getBody();
   
   //set preliminary header
