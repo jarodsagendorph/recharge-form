@@ -8,7 +8,9 @@ function onFormSubmit(e) {
   var rechargeAddr = parseRechargeAddress(lastResponse[2]);
   
   //copy template file, name after invoice #
-  var driveFile = DriveApp.getFileById('1k9qX80hxzHyIiVXlhNN_TPjk63-FDXNcJOm3sqpHVJk').makeCopy(lastResponse[4]);
+  var driveFile = DriveApp.getFileById('1k9qX80hxzHyIiVXlhNN_TPjk63-FDXNcJOm3sqpHVJk').makeCopy(lastResponse[4],
+                                                                                               DriveApp.getFolderById(
+                                                                                                 '14ILHNZSeirkUtg2ljcNCKyoePOjrJ2TR'));
   var body = DocumentApp.openByUrl(driveFile.getUrl()).getBody();
   
   //set preliminary header
@@ -28,7 +30,9 @@ function onFormSubmit(e) {
   jobCellStyle[DocumentApp.Attribute.FONT_SIZE] = 6;
   jobCellStyle[DocumentApp.Attribute.BOLD] = false;
   jobCellStyle[DocumentApp.Attribute.BORDER_WIDTH] = 0;
-  //Defines Job object and appends table                               
+  
+  var totalCost = 0;
+  //Defines Job object and appends table                              
   for(var i = 0; i < lastResponse[6]; ++i){
     var startCol = 31 - 8*i
     var job = {
@@ -39,25 +43,28 @@ function onFormSubmit(e) {
       pTime:parseTime(lastResponse[startCol+4]),
       dTime:parseTime(lastResponse[startCol+5]),
       dAdd:lastResponse[startCol+6],
-      miles:lastResponse[startCol+7],
-      elapsedTime:parseTime(lastResponse[startCol+5]-lastResponse[startCol+4])
+      miles:lastResponse[startCol+7]
     }
+    Logger.log(job.elapsedTime);
     var tableRow = table.appendTableRow();
-    tableRow.setAttributes(jobCellStyle);
-    Logger.log(tableRow.getNumCells());
-    var arr = [job.jobNum, job.refNum, job.date, getPickup(job), getDelivery(job), getCharges(job)];
-    
+    var charges = getCharges(job);
+    var arr = [job.jobNum, job.refNum, job.date, getPickup(job), getDelivery(job), charges[0]];
+    totalCost = charges[1];
     for(var j = 0; j < arr.length; ++j){
       tableRow.appendTableCell(arr[j]);
     }
+    tableRow.setAttributes(jobCellStyle);
   }
+  body.replaceText('{tot}', totalCost);
   
+  //email user completed form
+  GmailApp.sendEmail(lastResponse[1], 'Recharge form for Invoice #'+lastResponse[4], 'Please see the attached file. It can also be viewed at: \n'
+                     + driveFile.getUrl(), { attachements: [driveFile.getAs(MimeType.PDF)], name: 'Automatic Recharge Script'});
 }
 
 //parseRechargeAddress(addr: Multiline String): String[]
 function parseRechargeAddress(addr){
   var addrSplit = addr.split("\n");
-  Logger.log(addrSplit);
   //normalizes array  to 5 lines, replaces excess {addr} lines with " "
   while(addrSplit.length < 5){
     addrSplit.push(" ");
@@ -90,9 +97,14 @@ function getDelivery(job){
   return firstLine + "\n" + job.dAdd;
 }
 
-//getCharges(job: Job): String
+//getCharges(job: Job): [String, number]
 function getCharges(job){
-  var base = "Base: \t" + job.elapsedTime;
-  var miles = "Miles: \t" + job.miles + "\t + $" + job.miles*0.58
-  return base + "\n" + miles;
+  var hours = parseInt(job.dTime.substring(0, 2), 10)-parseInt(job.pTime.substring(0,2), 10);
+  var minutes = parseInt(job.dTime.substring(3), 10)-parseInt(job.pTime.substring(3), 10);
+  var totalTime = hours+(minutes/60);
+  var base = "Time: \t" + hours + ":" + minutes + "\t $" + (totalTime*25).toFixed(2);
+  var miles = "Miles: \t" + job.miles + "\t $" + job.miles*0.58
+  var totalCost = (totalTime*25 + job.miles*0.58).toFixed(2);
+  var tot = "Total: \t \t $" + totalCost.toString(10);
+  return [base + "\n" + miles + "\n" + tot, totalCost];
 }
